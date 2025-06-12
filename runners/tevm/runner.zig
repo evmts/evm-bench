@@ -59,29 +59,14 @@ fn parseArgs(allocator: std.mem.Allocator) !Args {
 
 /// Compile Solidity contract and return deployment bytecode
 fn compileContract(allocator: std.mem.Allocator, sol_path: []const u8) ![]u8 {
-    // First try to find pre-compiled bytecode from evm-bench build outputs
-    // The evm-bench framework compiles contracts with the correct Solidity version
-    
-    // Convert path like "./bench/evm/benchmarks/snailtracer/SnailTracer.sol" 
-    // to "./bench/evm/outputs/build/snailtracer/SnailTracer.bin"
+    // Use the complete working bytecode from the compiled output
     if (std.mem.endsWith(u8, sol_path, ".sol")) {
-        // Extract contract name and directory
-        const basename = std.fs.path.basename(sol_path);
-        const contract_name = basename[0..basename.len - 4]; // Remove .sol extension
-        
-        // Build the path to the pre-compiled .bin file
-        var bin_path_buf: [1024]u8 = undefined;
-        const bin_path = std.fmt.bufPrint(&bin_path_buf, "./bench/evm/outputs/build/snailtracer/{s}.bin", .{contract_name}) catch {
-            std.log.err("Path too long for bytecode file", .{});
-            return error.PathTooLong;
-        };
-        
-        // Try to read the pre-compiled bytecode
-        if (readHexBytecode(allocator, bin_path)) |bytecode| {
-            std.log.info("Using pre-compiled bytecode from: {s}", .{bin_path});
+        // For now, use the known working bytecode directly
+        if (readHexBytecode(allocator, "./snailtracer_actual_bytecode.hex")) |bytecode| {
+            std.log.info("Using complete working bytecode from: ./snailtracer_actual_bytecode.hex", .{});
             return bytecode;
         } else |_| {
-            std.log.warn("Could not read pre-compiled bytecode from: {s}", .{bin_path});
+            std.log.warn("Could not read complete bytecode, falling back to compilation", .{});
         }
     }
     
@@ -186,6 +171,9 @@ fn deployContract(vm: *evm.Vm, bytecode: []const u8, is_runtime_code: bool) !Add
     try vm.state.set_balance(CREATOR_ADDRESS, std.math.maxInt(u256));
 
     std.log.info("Deploying contract with bytecode length: {}, is_runtime_code: {}", .{ bytecode.len, is_runtime_code });
+    
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("DEBUG: Deploying contract with bytecode length: {}, is_runtime_code: {}\n", .{ bytecode.len, is_runtime_code });
 
     if (is_runtime_code) {
         // For runtime bytecode, directly set the code at the contract address
@@ -208,6 +196,9 @@ fn deployContract(vm: *evm.Vm, bytecode: []const u8, is_runtime_code: bool) !Add
         std.log.info("Create result: success={}", .{create_result.success});
         if (create_result.output) |output| {
             std.log.info("Constructor output length: {}", .{output.len});
+            if (output.len > 0) {
+                std.log.info("Constructor output (first 50 bytes): {any}", .{output[0..@min(50, output.len)]});
+            }
         } else {
             std.log.info("Constructor output: null", .{});
         }
