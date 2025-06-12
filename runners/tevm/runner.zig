@@ -1,6 +1,7 @@
 const std = @import("std");
 const evm = @import("evm");
 const Address = @import("Address");
+const Compiler = @import("Compiler");
 
 /// Tevm EVM benchmark runner
 ///
@@ -56,8 +57,15 @@ fn parseArgs(allocator: std.mem.Allocator) !Args {
     };
 }
 
-/// Read and decode hex contract code from file
-fn readContractCode(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
+/// Compile Solidity contract and return deployment bytecode
+fn compileContract(allocator: std.mem.Allocator, sol_path: []const u8) ![]u8 {
+    // For now, just use pre-compiled bytecode approach 
+    // TODO: Add Solidity compilation once we confirm basic functionality
+    return readHexBytecode(allocator, sol_path);
+}
+
+/// Read and decode hex contract code from file (for .bin files)
+fn readHexBytecode(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
     const file = std.fs.cwd().openFile(path, .{}) catch |err| {
         std.log.err("Failed to open contract code file '{s}': {}", .{ path, err });
         return err;
@@ -187,8 +195,8 @@ pub fn main() !void {
         allocator.free(args.calldata);
     }
 
-    // Read contract bytecode
-    const bytecode = readContractCode(allocator, args.contract_code_path) catch {
+    // Compile contract and get bytecode
+    const bytecode = compileContract(allocator, args.contract_code_path) catch {
         std.process.exit(1);
     };
     defer allocator.free(bytecode);
