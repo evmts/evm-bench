@@ -100,6 +100,8 @@ fn deployContract(vm: *evm.Vm, bytecode: []const u8) !Address.Address {
     // Set up creator account with sufficient balance
     try vm.state.set_balance(CREATOR_ADDRESS, std.math.maxInt(u256));
 
+    std.log.info("Deploying contract with bytecode length: {}", .{bytecode.len});
+
     // Deploy the contract
     const create_result = vm.create_contract(
         CREATOR_ADDRESS, // creator
@@ -110,6 +112,8 @@ fn deployContract(vm: *evm.Vm, bytecode: []const u8) !Address.Address {
         std.log.err("Failed to deploy contract: {}", .{err});
         return err;
     };
+
+    std.log.info("Create result: success={}", .{create_result.success});
 
     if (!create_result.success) {
         std.log.err("Contract deployment failed", .{});
@@ -124,25 +128,46 @@ fn executeCall(vm: *evm.Vm, contract_addr: Address.Address, calldata: []const u8
     // Set up caller account
     try vm.state.set_balance(CALLER_ADDRESS, std.math.maxInt(u256));
 
+    // Get the deployed contract code
+    const code = vm.state.get_code(contract_addr);
+    if (code.len == 0) {
+        std.log.err("No code found at contract address", .{});
+        return error.NoCodeAtAddress;
+    }
+
+    // Create a contract instance for execution
+    var contract = evm.Contract.init(
+        CALLER_ADDRESS, // caller
+        contract_addr, // address
+        0, // value
+        GAS_LIMIT, // gas
+        code, // code
+        [_]u8{0} ** 32, // code_hash (not used for execution)
+        calldata, // input
+        false, // is_static
+    );
+    defer contract.deinit(vm.allocator, null);
+
     const start_time = std.time.nanoTimestamp();
 
-    const call_result = vm.call_contract(
-        CALLER_ADDRESS, // caller
-        contract_addr, // to
-        0, // value
-        calldata, // input
-        GAS_LIMIT, // gas
-        false, // not static
-    ) catch |err| {
-        std.log.err("Contract call failed: {}", .{err});
+    const run_result = vm.interpret(&contract, calldata) catch |err| {
+        std.log.err("Contract interpretation failed: {}", .{err});
         return err;
     };
 
     const end_time = std.time.nanoTimestamp();
 
-    if (!call_result.success) {
-        std.log.err("Contract call returned failure", .{});
-        return error.CallFailed;
+    // Check if execution was successful (returned normally)
+    switch (run_result.status) {
+        .Success => {}, // Good, continue
+        .Revert => {
+            std.log.err("Contract execution reverted", .{});
+            return error.ExecutionReverted;
+        },
+        else => {
+            std.log.err("Contract execution failed with status: {}", .{run_result.status});
+            return error.ExecutionFailed;
+        },
     }
 
     return @intCast(end_time - start_time);
@@ -193,6 +218,10 @@ pub fn main() !void {
     };
 
     std.log.info("Deployed contract to address: {any}", .{contract_addr});
+    
+    // Debug: Check if code was actually deployed
+    const deployed_code = vm.state.get_code(contract_addr);
+    std.log.info("Deployed code length: {}", .{deployed_code.len});
 
     // Execute benchmark runs
     var total_time: u64 = 0;
