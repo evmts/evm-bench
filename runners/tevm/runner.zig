@@ -112,9 +112,15 @@ fn compileContract(allocator: std.mem.Allocator, sol_path: []const u8) ![]u8 {
         return error.NoContractsFound;
     }
     
-    // Return the bytecode of the first contract
+    // Return the runtime bytecode if available, otherwise constructor bytecode
     const contract = &result.contracts[0];
-    return try allocator.dupe(u8, contract.bytecode);
+    if (contract.deployed_bytecode.len > 0) {
+        std.log.info("Using runtime bytecode from compiler: {} bytes", .{contract.deployed_bytecode.len});
+        return try allocator.dupe(u8, contract.deployed_bytecode);
+    } else {
+        std.log.info("No runtime bytecode from compiler, using constructor bytecode: {} bytes", .{contract.bytecode.len});
+        return try allocator.dupe(u8, contract.bytecode);
+    }
 }
 
 /// Simple heuristic to detect if bytecode is runtime code vs constructor code
@@ -400,12 +406,11 @@ pub fn main() !void {
         allocator.free(args.calldata);
     }
 
-    // TEMPORARY: Use unit test bytecode instead of compilation
-    const bytecode = try allocator.alloc(u8, unit_test_bytecode_hex.len / 2);
+    // Compile contract and get bytecode
+    const bytecode = compileContract(allocator, args.contract_code_path) catch {
+        std.process.exit(1);
+    };
     defer allocator.free(bytecode);
-    _ = try std.fmt.hexToBytes(bytecode, unit_test_bytecode_hex);
-    
-    std.log.info("Using unit test bytecode length: {} bytes", .{bytecode.len});
 
     // Decode calldata
     const calldata = decodeCalldata(allocator, args.calldata) catch {
