@@ -38,7 +38,7 @@
     .dependencies = .{
         .Guillotine = .{
             .url = "https://github.com/evmts/Guillotine/archive/main.tar.gz",
-            .hash = "Guillotine-0.0.0-VmyYdAYRJQBMUX5l8oLk9gBzMvUIVKDFX5T3bR1TUVfw",
+            .hash = "Guillotine-0.0.0-VmyYdK2NJgD0kfFHeIIAvWGT9nC3rqyRM3NUmQKP_kbH",
         },
     },
     .paths = .{

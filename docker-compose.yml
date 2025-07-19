@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  evm-bench:
+    build: 
+      context: .
+      target: base  # Use build stage instead of runtime stage
+    container_name: evm-bench-runner
+    volumes:
+      - ./results:/app/results
+      - ./benchmarks:/app/benchmarks
+      - ./runners:/app/runners
+      - ./outputs:/app/outputs
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      - DOCKER_EXECUTABLE=docker  # Use docker for compilation
+      - PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/zig:/usr/local/bin:/usr/bin:/bin
+    working_dir: /app
+    command: ["tail", "-f", "/dev/null"]  # Keep container running for interactive use
+
+  # Individual runner services for isolated testing
+  guillotine-runner:
+    build: .
+    container_name: guillotine-test
+    volumes:
+      - ./results:/app/results
+      - ./benchmarks:/app/benchmarks
+    environment:
+      - RUST_LOG=info
+    working_dir: /app
+    command: ["evm-bench", "--runner", "guillotine", "--quiet"]
+
+  revm-runner:
+    build: .
+    container_name: revm-test
+    volumes:
+      - ./results:/app/results
+      - ./benchmarks:/app/benchmarks
+    environment:
+      - RUST_LOG=info
+    working_dir: /app
+    command: ["evm-bench", "--runner", "revm", "--quiet"]
+
+  evmone-runner:
+    build: .
+    container_name: evmone-test
+    volumes:
+      - ./results:/app/results
+      - ./benchmarks:/app/benchmarks
+    environment:
+      - RUST_LOG=info
+    working_dir: /app
+    command: ["evm-bench", "--runner", "evmone", "--quiet"]
+
+  geth-runner:
+    build: .
+    container_name: geth-test
+    volumes:
+      - ./results:/app/results
+      - ./benchmarks:/app/benchmarks
+    environment:
+      - RUST_LOG=info
+    working_dir: /app
+    command: ["evm-bench", "--runner", "geth", "--quiet"]
+
+  ethereumjs-runner:
+    build: .
+    container_name: ethereumjs-test
+    volumes:
+      - ./results:/app/results
+      - ./benchmarks:/app/benchmarks
+    environment:
+      - RUST_LOG=info
+    working_dir: /app
+    command: ["evm-bench", "--runner", "ethereumjs", "--quiet"]
+
+  # Service to run all benchmarks
+  full-benchmark:
+    build: .
+    container_name: full-benchmark-test
+    volumes:
+      - ./results:/app/results
+      - ./benchmarks:/app/benchmarks
+    environment:
+      - RUST_LOG=info
+    working_dir: /app
+    command: ["evm-bench"]
+
+volumes:
+  results:
+    driver: local

@@ -33,6 +33,7 @@ fn build_benchmark(
     benchmark: &Benchmark,
     build_context: &BuildContext,
 ) -> Result<BuiltBenchmark, Box<dyn error::Error>> {
+    eprintln!("ENTERING build_benchmark for {}", benchmark.name);
     let contract_name = benchmark
         .contract
         .file_name()
@@ -40,11 +41,31 @@ fn build_benchmark(
         .to_string_lossy()
         .to_string();
 
+    // Check if the binary already exists
+    let mut contract_bin_path = build_context.build_path.join(&contract_name);
+    contract_bin_path.set_extension("bin");
+    
+    eprintln!("DEBUG: checking for existing binary at: {}", contract_bin_path.display());
+    
+    if contract_bin_path.exists() {
+        log::info!(
+            "using existing binary for benchmark {} ({})",
+            benchmark.name,
+            contract_bin_path.display()
+        );
+        return Ok(BuiltBenchmark {
+            benchmark: benchmark.clone(),
+            result: BuildResult { contract_bin_path },
+        });
+    }
+
     log::info!(
         "building benchmark {} ({contract_name} w/ solc@{})...",
         benchmark.name,
         benchmark.solc_version
     );
+    
+    eprintln!("AFTER LOG MESSAGE - checking for: {}", contract_bin_path.display());
 
     let relative_contract_path = build_context
         .contract_path
@@ -88,9 +109,6 @@ fn build_benchmark(
     log::trace!("stderr: {}", String::from_utf8(out.stderr).unwrap());
 
     if out.status.success() {
-        let mut contract_bin_path = build_context.build_path.join(&contract_name);
-        contract_bin_path.set_extension("bin");
-
         log::debug!("built benchmark {}", benchmark.name);
         Ok(BuiltBenchmark {
             benchmark: benchmark.clone(),
