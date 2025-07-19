@@ -9,5 +9,5 @@ clap = { version = "4.5.3", features = ["derive"] }
 hex = "0.4"
 primitive-types = { version = "0.11", features = ["rlp"] }
 # from branch primitives
-revm = "14.0"
+revm = "22.0"
 

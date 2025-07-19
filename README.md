@@ -10,11 +10,19 @@ evm-bench makes it easy to compare EVM performance in a scalable, standardized, 
 
 The benchmark suite has been enhanced with a comprehensive Docker environment supporting:
 
-✅ **Working EVM Runners:**
-- **revm** (Rust) - High-performance implementation
-- **evmone** (C++) - Optimized low-level implementation  
-- **ethereumjs** (Node.js) - JavaScript reference implementation
-- **guillotine** (Zig) - High-performance implementation (architecture compatibility in progress)
+✅ **Currently Working EVM Runners:**
+- **revm** (Rust) - High-performance implementation - **2ms avg**
+- **evmone** (C++) - Optimized low-level implementation - **12.9ms avg**
+
+⚠️ **Partially Working:**
+- **guillotine** (Zig) - Real EVM execution implemented, but has memory issues with some contracts
+
+❌ **Non-Working Runners:**
+- **geth** (Go) - Runtime failures
+- **ethereumjs** (Node.js) - Runtime failures  
+- **pyrevm** (Python/Rust) - Runtime failures
+- **py-evm** (Python) - Runtime failures
+- **akula** (Rust) - Runtime failures
 
 ✅ **Build Environment:**
 - Multi-language Docker environment (Rust, C++, Go, Node.js, Python, Zig)
@@ -27,20 +35,45 @@ The benchmark suite has been enhanced with a comprehensive Docker environment su
 - SnailTracer (complex contract execution)
 - Ten Thousand Hashes (hash computation stress test)
 
-## Historical Performance Results
+## Current Performance Results
 
-|                         | evmone | revm   | pyrevm | geth   | py-evm.pypy | py-evm.cpython | ethereumjs |
-| ----------------------- | ------ | ------ | ------ | ------ | ----------- | -------------- | ---------- |
-| **sum**                 | 66ms   | 84.8ms | 194ms  | 235ms  | 7.201s      | 19.0886s       | 146.3218s  |
-| **relative**            | 1.000x | 1.285x | 2.939x | 3.561x | 109.106x    | 289.221x       | 2216.997x  |
-|                         |        |        |        |        |             |                |            |
-| erc20.approval-transfer | 7ms    | 9.6ms  | 16.2ms | 17ms   | 425.2ms     | 1.13s          | 2.0006s    |
-| erc20.mint              | 5ms    | 6.4ms  | 14.8ms | 17.2ms | 334ms       | 1.1554s        | 3.1352s    |
-| erc20.transfer          | 8.6ms  | 11.6ms | 22.8ms | 24.6ms | 449.2ms     | 1.6172s        | 3.6564s    |
-| snailtracer             | 43ms   | 53ms   | 128ms  | 163ms  | 5.664s      | 13.675s        | 135.059s   |
-| ten-thousand-hashes     | 2.4ms  | 4.2ms  | 12.2ms | 13.2ms | 328.6ms     | 1.511s         | 2.4706s    |
+### Working Benchmarks (Latest Results)
 
-*Note: Updated benchmark results with the new Docker environment will be available once Docker-in-Docker compilation is finalized.*
+| Benchmark     | revm   | evmone  | Status        |
+|---------------|--------|---------|---------------|
+| **sum**       | **4ms**| **25.8ms** | ✅ Working    |
+| **relative**  | **1.000x** | **6.450x** |               |
+| erc20.transfer| 2ms    | 4.8ms   | ✅ Working    |
+| snailtracer   | 2ms    | 21ms    | ✅ Working    |
+
+### Runner Status Summary
+
+| Runner | Language | erc20.transfer | snailtracer | ten-thousand-hashes | erc20.mint | erc20.approval-transfer |
+|--------|----------|---------------|-------------|---------------------|------------|-------------------------|
+| **revm** | Rust | ✅ 2ms | ✅ 2ms | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+| **evmone** | C++ | ✅ 4.8ms | ✅ 21ms | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+| **guillotine** | Zig | ❌ Out of memory | ⚠️ Output parsing issues | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+| **geth** | Go | ❌ Exit status 1 | ❌ Exit status 1 | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+| **ethereumjs** | Node.js | ❌ Exit status 1 | ❌ Exit status 1 | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+| **pyrevm** | Python/Rust | ❌ Exit status 1 | ❌ Exit status 1 | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+| **py-evm.cpython** | Python | ❌ Exit status 1 | ❌ Exit status 1 | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+| **py-evm.pypy** | Python | ❌ Exit status 1 | ❌ Exit status 1 | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+| **akula** | Rust | ❌ Exit status 101 | ❌ Exit status 101 | ❌ Build failed | ❌ Build failed | ❌ Build failed |
+
+### Key Findings
+
+🎯 **Successfully debugged guillotine performance claims**: The original 84x performance advantage was fake (hardcoded 1ms outputs). Replaced with real EVM execution including:
+- Real stack operations (push, pop, peek)
+- Memory management (MLOAD, MSTORE) 
+- Opcode execution (ADD, MUL, SUB, DIV, JUMP, JUMPI, etc.)
+- Proper gas accounting and Keccak256 hashing
+- **Result**: Realistic performance (~23-26ms) instead of fake 1ms values
+
+✅ **Currently Working**: Only `revm` and `evmone` are fully functional with the available benchmark contracts.
+
+⚠️ **Build Issues**: Most benchmark contracts fail to compile (erc20.mint, erc20.approval-transfer, ten-thousand-hashes), suggesting Solidity compilation setup needs attention.
+
+🔧 **Runner Issues**: Most EVM runners are encountering runtime failures, indicating broader compatibility issues across the ecosystem.
 
 ## Technical Overview
 
@@ -92,21 +125,33 @@ See the CLI arguments for evm-bench to figure out how to set it up! Alternativel
 - ✅ **Smart Contract Compilation**: Pre-compiled benchmark contracts ready for execution
 - ✅ **Guillotine Integration**: Zig EVM implementation successfully integrated into framework
 
-### Working Runners
-| Runner | Language | Status | Performance Tier |
-|--------|----------|--------|------------------|
-| **evmone** | C++ | ✅ Built | Tier 1 (Fastest) |
-| **revm** | Rust | ✅ Built | Tier 1 (Fastest) |
-| **ethereumjs** | Node.js | ✅ Built | Tier 2 (Moderate) |
-| **guillotine** | Zig | 🔧 Built (arch fix needed) | Tier 1 (Expected) |
-| geth | Go | ❌ Build issues | Tier 2 |
-| py-evm | Python | ❌ Dependency conflicts | Tier 3 |
+### Updated Runner Status
+| Runner | Language | Status | Performance (Working Benchmarks) | Issues |
+|--------|----------|--------|----------------------------------|---------|
+| **revm** | Rust | ✅ Working | **2ms avg** (Tier 1 - Fastest) | None |
+| **evmone** | C++ | ✅ Working | **12.9ms avg** (Tier 1 - Fast) | None |
+| **guillotine** | Zig | ⚠️ Partial | Fixed fake performance claims | Memory issues, output parsing |
+| geth | Go | ❌ Failed | N/A | Runtime failures |
+| ethereumjs | Node.js | ❌ Failed | N/A | Runtime failures |
+| pyrevm | Python/Rust | ❌ Failed | N/A | Runtime failures |
+| py-evm | Python | ❌ Failed | N/A | Runtime failures |
+| akula | Rust | ❌ Failed | N/A | Runtime failures (exit 101) |
 
 ### Next Steps
-1. **Complete Docker-in-Docker setup** for automated Solidity compilation
-2. **Fix architecture compatibility** for guillotine runner
-3. **Generate performance comparison reports** with working runners
-4. **Add CI/CD pipeline** for automated benchmarking
+
+**High Priority:**
+1. **Fix Solidity compilation** for missing benchmark contracts (erc20.mint, erc20.approval-transfer, ten-thousand-hashes)
+2. **Debug runner failures** - Most EVM implementations are failing with runtime errors
+3. **Fix guillotine memory issues** - Custom EVM implementation needs debugging for ERC20 contracts
+
+**Medium Priority:**
+4. **Improve benchmark contract compatibility** across different EVM implementations  
+5. **Add error reporting and diagnostics** for failed runner executions
+6. **Complete Docker-in-Docker setup** for automated Solidity compilation
+
+**Low Priority:**
+7. **Add CI/CD pipeline** for automated benchmarking
+8. **Performance regression testing** for working runners
 
 ### Files Added/Modified
 - `Dockerfile` - Multi-language build environment
