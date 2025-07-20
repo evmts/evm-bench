@@ -37,8 +37,7 @@
     // internet connectivity.
     .dependencies = .{
         .Guillotine = .{
-            .url = "https://github.com/evmts/Guillotine/archive/main.tar.gz",
-            .hash = "Guillotine-0.0.0-VmyYdDbNKADqbMCLAM8GYba_qFGxR2vMd-YJmWwpJAzH",
+            .path = "guillotine-source",
         },
     },
     .paths = .{
