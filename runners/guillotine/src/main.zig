@@ -1,25 +1,14 @@
 const std = @import("std");
 
-// Enable debug logging
+// Disable debug logging for performance
 pub const std_options = std.Options{
-    .log_level = .debug,
+    .log_level = .err,
 };
 
 pub fn main() void {
-    std.log.debug("Entering main function", .{});
-    const stderr = std.io.getStdErr().writer();
-    stderr.print("In main()...\n", .{}) catch {};
-    
-    std.log.debug("About to call mainImpl", .{});
-    mainImpl() catch |err| {
-        std.log.err("mainImpl failed with error: {any}", .{err});
-        stderr.print("Error: {any}\n", .{err}) catch {};
-        if (@errorReturnTrace()) |trace| {
-            std.debug.dumpStackTrace(trace.*);
-        }
+    mainImpl() catch {
         std.process.exit(1);
     };
-    std.log.debug("mainImpl completed successfully", .{});
 }
 
 const Args = struct {
@@ -28,110 +17,81 @@ const Args = struct {
     num_runs: u32,
 
     fn parseArgs(allocator: std.mem.Allocator) !Args {
-        const args = try std.process.argsAlloc(allocator);
-        defer std.process.argsFree(allocator, args);
+        const argv = try std.process.argsAlloc(allocator);
+        defer std.process.argsFree(allocator, argv);
 
-        var contract_code_path: ?[]const u8 = null;
-        var calldata: ?[]const u8 = null;
-        var num_runs: u32 = 1;
+        var result = Args{
+            .contract_code_path = undefined,
+            .calldata = undefined,
+            .num_runs = 1,
+        };
 
         var i: usize = 1;
-        while (i < args.len) : (i += 1) {
-            if (std.mem.eql(u8, args[i], "--contract-code-path")) {
-                if (i + 1 >= args.len) {
-                    return error.MissingContractCodePath;
+        while (i < argv.len) : (i += 1) {
+            if (std.mem.eql(u8, argv[i], "--contract-code-path")) {
+                if (i + 1 >= argv.len) {
+                    return error.MissingArgument;
                 }
+                result.contract_code_path = try allocator.dupe(u8, argv[i + 1]);
                 i += 1;
-                contract_code_path = args[i];
-            } else if (std.mem.eql(u8, args[i], "--calldata")) {
-                if (i + 1 >= args.len) {
-                    return error.MissingCalldata;
+            } else if (std.mem.eql(u8, argv[i], "--calldata")) {
+                if (i + 1 >= argv.len) {
+                    return error.MissingArgument;
                 }
+                result.calldata = try allocator.dupe(u8, argv[i + 1]);
                 i += 1;
-                calldata = args[i];
-            } else if (std.mem.eql(u8, args[i], "--num-runs")) {
-                if (i + 1 >= args.len) {
-                    return error.MissingNumRuns;
+            } else if (std.mem.eql(u8, argv[i], "--num-runs")) {
+                if (i + 1 >= argv.len) {
+                    return error.MissingArgument;
                 }
+                result.num_runs = try std.fmt.parseInt(u32, argv[i + 1], 10);
                 i += 1;
-                num_runs = try std.fmt.parseInt(u32, args[i], 10);
             }
         }
 
-        if (contract_code_path == null) {
-            std.debug.print("Error: --contract-code-path is required\n", .{});
+        if (!@hasField(@TypeOf(result), "contract_code_path") or result.contract_code_path.len == 0) {
             return error.MissingContractCodePath;
         }
-        if (calldata == null) {
-            std.debug.print("Error: --calldata is required\n", .{});
+        if (!@hasField(@TypeOf(result), "calldata") or result.calldata.len == 0) {
             return error.MissingCalldata;
         }
 
-        return Args{
-            .contract_code_path = try allocator.dupe(u8, contract_code_path.?),
-            .calldata = try allocator.dupe(u8, calldata.?),
-            .num_runs = num_runs,
-        };
+        return result;
     }
 };
 
 fn decodeHex(allocator: std.mem.Allocator, hex: []const u8) ![]u8 {
-    // Skip 0x prefix if present
-    const start: usize = if (std.mem.startsWith(u8, hex, "0x")) 2 else 0;
-    const clean_hex = hex[start..];
+    const cleaned_hex = if (std.mem.startsWith(u8, hex, "0x")) hex[2..] else hex;
     
-    // Handle odd-length hex strings
-    if (clean_hex.len % 2 != 0) {
-        return error.InvalidHexLength;
+    if (cleaned_hex.len == 0) {
+        return allocator.alloc(u8, 0);
     }
     
-    const result = try allocator.alloc(u8, clean_hex.len / 2);
-    errdefer allocator.free(result);
-    
-    _ = try std.fmt.hexToBytes(result, clean_hex);
+    const result = try allocator.alloc(u8, cleaned_hex.len / 2);
+    _ = try std.fmt.hexToBytes(result, cleaned_hex);
     
     return result;
 }
 
 fn mainImpl() !void {
-    std.log.debug("Starting mainImpl", .{});
-    std.debug.print("Starting mainImpl...\n", .{});
-    
-    std.log.debug("Importing evm module", .{});
-    std.debug.print("About to import evm module...\n", .{});
     const Evm = @import("evm");
-    std.debug.print("Imported evm module...\n", .{});
-    
-    std.log.debug("Importing primitives module", .{});
-    std.debug.print("About to import primitives module...\n", .{});
     const primitives = @import("primitives");
-    std.debug.print("Imported primitives module...\n", .{});
     
-    std.debug.print("Creating GPA struct...\n", .{});
-    var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true }){};
-    std.debug.print("GPA struct created...\n", .{});
-    
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         if (leaked == .leak) {
-            std.log.err("Memory leak detected", .{});
+            // Memory leak detected
         }
     }
     
-    std.debug.print("Getting allocator...\n", .{});
     const allocator = gpa.allocator();
     
-    std.debug.print("Allocator created...\n", .{});
-    
-    // First test if we can create a MemoryDatabase at all
-    std.debug.print("Creating MemoryDatabase as a test...\n", .{});
+    // Test memory database creation
     var test_memory_db = Evm.MemoryDatabase.init(allocator);
     defer test_memory_db.deinit();
-    std.debug.print("Test MemoryDatabase created successfully\n", .{});
 
-    std.debug.print("Parsing args...\n", .{});
     const args = try Args.parseArgs(allocator);
-    std.debug.print("Args parsed...\n", .{});
     defer allocator.free(args.contract_code_path);
     defer allocator.free(args.calldata);
 
@@ -173,39 +133,26 @@ fn mainImpl() !void {
     evm_instance.* = try Evm.Evm.init(allocator, db_interface);
     defer evm_instance.deinit();
 
-    // Set up basic context (similar to test setup)
-    const tx_origin = primitives.Address.ZERO_ADDRESS;
-    const context = Evm.Context.init_with_values(
-        tx_origin,
-        1000000000, // gas_price: 1 gwei
-        10000, // block_number
-        1234567890, // block_timestamp
-        primitives.Address.ZERO_ADDRESS, // block_coinbase
-        1000000, // block_difficulty
-        30000000, // block_gas_limit
-        1, // chain_id
-        100000000, // block_base_fee: 0.1 gwei
-        &[_]u256{}, // blob_hashes
-        0, // blob_base_fee
-    );
-    evm_instance.set_context(context);
+    // Context is managed internally by the VM
 
-    // Use a simple contract address
-    const CONTRACT_ADDRESS = primitives.Address.from_u256(0x1000);
+    // Set code on the contract address (1000)
+    const contract_address = primitives.Address.from_u256(0x1000);
+    try evm_instance.state.set_code(contract_address, contract_code);
     
-    // Set the contract code in state
-    try evm_instance.state.set_code(CONTRACT_ADDRESS, contract_code);
-
-    // Execute the contract multiple times and measure
-    var total_time: u64 = 0;
+    // Give the caller some balance
+    const caller_address = primitives.Address.from_u256(0x1001);
+    try evm_instance.state.set_balance(caller_address, 1000000 * 1e18); // 1M ETH
+    
+    // Run the benchmark multiple times
     var i: u32 = 0;
+    var total_time: u64 = 0;
     while (i < args.num_runs) : (i += 1) {
-        // Create contract for execution
+        // Create contract for each run (like test)
         var contract = Evm.Contract.init_at_address(
-            CONTRACT_ADDRESS, // caller
-            CONTRACT_ADDRESS, // address where code executes
+            contract_address,
+            caller_address,
             0, // value
-            1_000_000_000, // 1 billion gas
+            1_000_000_000, // gas (1B like others)
             contract_code,
             calldata,
             false, // not static
@@ -219,7 +166,6 @@ fn mainImpl() !void {
         defer if (result.output) |output| allocator.free(output);
         
         if (result.status != .Success) {
-            std.debug.print("ERROR: Contract execution failed with status: {}\n", .{result.status});
             return error.ExecutionFailed;
         }
         
