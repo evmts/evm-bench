@@ -1,0 +1,4 @@
+0
+5297576 139891880 1752986040659814437 b9f56cd48c5495208a59eeeb9f139402 0 guillotine-source/target/release/libbn254_wrapper.a
+178478 365878 1707975718000000000 6d2aa9a084d580875e0b734ff3a9f029 0 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/Security.framework/Security.tbd
+126455 363573 1707554273000000000 4c00c071f10fd694740e202fc547de9b 0 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation.tbd

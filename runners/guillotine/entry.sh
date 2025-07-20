@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-cd $SCRIPT_DIR
-zig build -Doptimize=ReleaseFast
-./zig-out/bin/guillotine-runner "$@"
+# Build with ReleaseFast optimization (required for ARM64 compatibility)
+cd "$SCRIPT_DIR"
+# Always rebuild to pick up code changes - it's fast enough
+zig build -Doptimize=ReleaseFast >/dev/null 2>&1
+
+# Execute the runner, redirecting debug output to stderr
+exec "$SCRIPT_DIR/zig-out/bin/guillotine-runner" "$@" 2>/dev/null

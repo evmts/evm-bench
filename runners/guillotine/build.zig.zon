@@ -39,6 +39,10 @@
         .Guillotine = .{
             .path = "guillotine-source",
         },
+        .c_kzg_4844 = .{
+            .url = "git+https://github.com/evmts/c-kzg-4844#d231873d5c815af6f1ab2e315f038fa5cb8c5294",
+            .hash = "c_kzg_4844-0.0.0-UbJ7acpiHQBNlbFymCuO9OTLut3UtdHz4OiDZBc5pCAd",
+        },
     },
     .paths = .{
         "build.zig",

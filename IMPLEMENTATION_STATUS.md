@@ -23,10 +23,10 @@ Fixed fake performance results in multiple EVM runners to ensure they use actual
 - **Issue**: MockedHost not properly handling contract execution
 - **File**: `runners/evmone/runner.cpp`
 
-### ⚠️ Guillotine (Zig)
-- **Status**: Building from source but not fully integrated
-- **Performance**: Placeholder output (100ms) - not using actual EVM yet
-- **Progress**: Successfully cloned as submodule and builds, but EVM integration needs work
+### ❌ Guillotine (Zig)
+- **Status**: NOT IMPLEMENTED - returns error instead of fake results
+- **Issue**: Complex API requirements and segmentation faults in release mode
+- **Progress**: Successfully cloned as submodule, attempted integration following e2e test patterns, but encountered runtime crashes
 - **File**: `runners/guillotine/src/main.zig`
 
 ## Key Findings

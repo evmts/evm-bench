@@ -2,6 +2,31 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL: ZERO TOLERANCE FOR FAKE OR PLACEHOLDER BENCHMARKS
+
+**ABSOLUTE PROHIBITION**: Under NO CIRCUMSTANCES are you allowed to implement fake, placeholder, or hardcoded benchmark results. This includes:
+
+- ❌ Outputting hardcoded timing values (e.g., `print("100.0")`)
+- ❌ Implementing "temporary" placeholder values
+- ❌ Creating mock implementations that don't use real EVM execution
+- ❌ Faking benchmark results "just to get it working"
+- ❌ Any form of simulated or estimated performance numbers
+
+**WHY THIS IS CRITICAL**:
+1. **Trust Destruction**: Publishing fake benchmarks destroys the credibility of the entire project
+2. **Community Anger**: Developers rely on accurate benchmarks for critical decisions
+3. **Misleading Data**: Fake results can lead to wrong technology choices costing time and money
+4. **Reputation Damage**: Once exposed, fake benchmarks permanently damage project reputation
+5. **Ethical Violation**: It's fundamentally dishonest and unprofessional
+
+**REQUIRED APPROACH**:
+- If you cannot get a runner working with real execution, clearly mark it as "NOT IMPLEMENTED"
+- Be honest about implementation status
+- Never output fake timing data
+- Either implement it correctly or don't implement it at all
+
+**ENFORCEMENT**: Any attempt to create placeholder benchmarks is grounds for immediate termination of assistance.
+
 ## Project Overview
 
 evm-bench is a suite of Ethereum Virtual Machine (EVM) stress tests and benchmarks written in Rust. It provides a framework for comparing EVM performance across different implementations in a scalable, standardized, and portable way.

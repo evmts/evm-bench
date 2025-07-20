@@ -56,8 +56,13 @@ int main(int argc, char** argv) {
   std::string contract_code_hex;
   std::ifstream file(contract_code_path);
   if (!file) {
-    std::cerr << "Failed to open contract file: " << contract_code_path << std::endl;
-    return 1;
+    // Try from parent directories if relative path fails
+    std::string alt_path = "../../" + contract_code_path;
+    file.open(alt_path);
+    if (!file) {
+      std::cerr << "Failed to open contract file: " << contract_code_path << std::endl;
+      return 1;
+    }
   }
   file >> contract_code_hex;
   
