@@ -4,10 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bytes = "1.5"
-clap = { version = "4.5.3", features = ["derive"] }
+clap = { version = "4.1.1", features = ["derive"] }
 hex = "0.4"
-primitive-types = { version = "0.11", features = ["rlp"] }
-# from branch primitives
-revm = "22.0"
+revm = { version = "27.0.3", default-features = false, features = ["std"] }
 
